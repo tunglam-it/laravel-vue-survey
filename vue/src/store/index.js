@@ -1,87 +1,6 @@
 import {createStore} from "vuex";
 import axiosClient from '../axios'
 
-const tmpSurveys = [
-    {
-        id: 1,
-        title: 'First Vue Project',
-        slug: 'first-vue-project',
-        status: 'draft',
-        image: 'https://picsum.photos/400',
-        description: "TuqLa is my name.<br>I am newbie dev and starting to learn code since 2 month.",
-        created_at: "2022-02-15 18:00:00",
-        updated_at: "2022-02-15 18:00:00",
-        expire_date: "2022-02-18 18:00:00",
-        question: [
-            {
-                id: 1,
-                type: 'select',
-                question: 'From which country are you?',
-                description: null,
-                data: {
-                    options: [
-                        {uuid: "", text: ""},
-                        {uuid: "", text: ""},
-                        {uuid: "", text: ""},
-                    ]
-                }
-            },
-        ]
-    },
-    {
-        id: 2,
-        title: 'First Vue Project 2',
-        slug: 'first-vue-project',
-        status: 'draft',
-        image: 'https://picsum.photos/400',
-        description: "TuqLa is my name.<br>I am newbie dev and starting to learn code since 2 month.",
-        created_at: "2022-02-15 18:00:00",
-        updated_at: "2022-02-15 18:00:00",
-        expire_date: "2022-02-18 18:00:00",
-        question: [
-            {
-                id: 1,
-                type: 'select',
-                question: 'From which country are you?',
-                description: null,
-                data: {
-                    options: [
-                        {uuid: "", text: ""},
-                        {uuid: "", text: ""},
-                        {uuid: "", text: ""},
-                    ]
-                }
-            }
-        ]
-    },
-    {
-        id: 3,
-        title: 'First Vue Project 3',
-        slug: 'first-vue-project',
-        status: 'draft',
-        image: 'https://picsum.photos/400',
-        description: "TuqLa is my name.<br>I am newbie dev and starting to learn code since 2 month.",
-        created_at: "2022-02-15 18:00:00",
-        updated_at: "2022-02-15 18:00:00",
-        expire_date: "2022-02-18 18:00:00",
-        question: [
-            {
-                id: 1,
-                type: 'select',
-                question: 'From which country are you?',
-                description: null,
-                data: {
-                    options: [
-                        {uuid: "", text: ""},
-                        {uuid: "", text: ""},
-                        {uuid: "", text: ""},
-                    ]
-                }
-            }
-        ]
-    },
-]
-
 const store = createStore({
     state: {
         user: {
@@ -92,7 +11,10 @@ const store = createStore({
             loading: false,
             data: {},
         },
-        surveys: [...tmpSurveys],
+        surveys: {
+            loading: false,
+            data: []
+        },
         questionTypes: ["text", "select", "radio", "checkbox", "textarea"]
     },
     getters: {},
@@ -113,6 +35,13 @@ const store = createStore({
         setCurrentSurveyLoading: (state, loading) => {
             state.currentSurvey.loading = loading;
         },
+        setSurveysLoading: (state, loading) => {
+            state.surveys.loading = loading;
+        },
+        setSurveys: (state, surveys) => {
+            state.surveys.data = surveys.data;
+        },
+
         // saveSurvey: (state, survey) => {
         //     // ... return all value in array, combine two array
         //     state.surveys = [...state.surveys, survey.data];
@@ -162,7 +91,15 @@ const store = createStore({
                     throw err;
                 })
         },
-        saveSurvey({commit}, survey) {
+        getSurveys({commit}) {
+            commit('setSurveysLoading', true);
+            return axiosClient.get(`/survey`).then((res) => {
+                commit('setSurveysLoading', false);
+                commit('setSurveys', res.data);
+                return res;
+            })
+        },
+        saveSurvey({commit, dispatch}, survey) {
             delete survey.image_url;
             let response;
             if (survey.id) {
@@ -177,8 +114,12 @@ const store = createStore({
                     .then((res) => {
                         commit("setCurrentSurvey", res.data)
                         return res;
-                    })
+                    });
             }
+            return response;
+        },
+        deleteSurvey({}, id) {
+            return axiosClient.delete(`/survey/${id}`);
         }
     }
 })
