@@ -11,6 +11,11 @@ const store = createStore({
             loading: false,
             data: {},
         },
+        notification: {
+            show: false,
+            message: null,
+            type: null,
+        },
         surveys: {
             loading: false,
             data: []
@@ -41,6 +46,14 @@ const store = createStore({
         setSurveys: (state, surveys) => {
             state.surveys.data = surveys.data;
         },
+        notify: (state, {message, type}) => {
+            state.notification.show = true;
+            state.notification.message = message;
+            state.notification.type = type;
+            setTimeout(()=>{
+                state.notification.show = false;
+            }, 3000)
+        }
 
         // saveSurvey: (state, survey) => {
         //     // ... return all value in array, combine two array
@@ -120,7 +133,7 @@ const store = createStore({
         },
         deleteSurvey({}, id) {
             return axiosClient.delete(`/survey/${id}`);
-        }
+        },
     }
 })
 

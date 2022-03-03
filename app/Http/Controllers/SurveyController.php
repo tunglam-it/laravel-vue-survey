@@ -4,11 +4,15 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\SurveyResource;
 use App\Models\Survey;
+use App\Models\SurveyQuestion;
 use App\Http\Requests\StoreSurveyRequest;
 use App\Http\Requests\UpdateSurveyRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class SurveyController extends Controller
 {
@@ -37,6 +41,11 @@ class SurveyController extends Controller
             $data['image'] = $relativePath;
         }
         $survey = Survey::create($data);
+        //create new question
+        foreach ($data['questions'] as $question) {
+            $question['survey_id'] = $survey->id;
+            $this->createQuestion($question);
+        }
         return new SurveyResource($survey);
     }
 
@@ -65,15 +74,44 @@ class SurveyController extends Controller
     public function update(UpdateSurveyRequest $request, Survey $survey)
     {
         $data = $request->validated();
-        if(isset($data['image'])){
+
+        // Check if image was given and save on local file system
+        if (isset($data['image'])) {
             $relativePath = $this->saveImage($data['image']);
             $data['image'] = $relativePath;
-            if($survey->image){
+
+            // If there is an old image, delete it
+            if ($survey->image) {
                 $absolutePath = public_path($survey->image);
                 File::delete($absolutePath);
             }
         }
         $survey->update($data);
+        //get ids as plain array of existing questions
+        $existingIds = $survey->questions()->pluck('id')->toArray();
+        //get ids as plain array of new questions
+        $newIds = Arr::pluck($data['questions'], 'id');
+        //find questions to delete
+        $toDelete = array_diff($existingIds, $newIds);
+        //find questions to add
+        $toAdd = array_diff($newIds, $existingIds);
+
+        //delete questions by $toDelete array
+        SurveyQuestion::destroy($toDelete);
+        //create new questions
+        foreach ($data['questions'] as $question) {
+            if (in_array($question['id'], $toAdd)) {
+                $question['survey_id'] = $survey->id;
+                $this->createQuestion($question);
+            }
+        }
+        //update existing questions
+        $questionMap = collect($data['questions'])->keyBy('id');
+        foreach ($survey->questions as $question) {
+            if (isset($questionMap[$question->id])) {
+                $this->updateQuestion($question, $questionMap[$question->id]);
+            }
+        }
         return new SurveyResource($survey);
     }
 
@@ -90,7 +128,7 @@ class SurveyController extends Controller
             return abort(403, 'Unauthorized action.');
         }
         $survey->delete();
-        if($survey->image){
+        if ($survey->image) {
             $absolutePath = public_path($survey->image);
             File::delete($absolutePath);
         }
@@ -127,5 +165,47 @@ class SurveyController extends Controller
         file_put_contents($relativePath, $image);
         return $relativePath;
 
+    }
+
+    private function createQuestion($data)
+    {
+        if (is_array($data['data'])) {
+            $data['data'] = json_encode($data['data']);
+        }
+        $validator = Validator::make($data, [
+            'question' => 'required|string',
+            'type' => ['required', Rule::in([
+                Survey::TYPE_CHECKBOX,
+                Survey::TYPE_RADIO,
+                Survey::TYPE_SELECT,
+                Survey::TYPE_TEXT,
+                Survey::TYPE_TEXTAREA,
+            ])],
+            'description' => 'nullable|string',
+            'data' => 'present',
+            'survey_id' => 'exists:App\Models\Survey,id'
+        ]);
+        return SurveyQuestion::create($validator->validated());
+    }
+
+    private function updateQuestion(SurveyQuestion $question, $data)
+    {
+        if(is_array($data['data'])){
+            $data['data'] = json_encode($data['data']);
+        }
+        $validator = Validator::make($data,[
+            'id' => 'exists:App\Models\SurveyQuestion,id',
+            'question' => 'required|string',
+            'type' => ['required', Rule::in([
+                Survey::TYPE_CHECKBOX,
+                Survey::TYPE_RADIO,
+                Survey::TYPE_SELECT,
+                Survey::TYPE_TEXT,
+                Survey::TYPE_TEXTAREA,
+            ])],
+            'description' => 'nullable|string',
+            'data' => 'present',
+        ]);
+        return $question->update($validator->validated());
     }
 }

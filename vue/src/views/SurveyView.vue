@@ -18,7 +18,7 @@
             </div>
         </template>
         <div v-if="surveyLoading" class="flex justify-center">Loading....</div>
-        <form v-else @submit.prevent="saveSurvey">
+        <form v-else @submit.prevent="saveSurvey" class="animate-fade-in-down">
             <div class="shadow sm:rounded-md sm:overflow-hidden">
                 <div class="px-4 py-5 bg-white space-y-6 sm:p-6">
                     <!--Image field start-->
@@ -32,8 +32,7 @@
                             <span v-else
                                   class="flex items-center justify-center h-12 w-12 rounded-full overflow-hidden bg-gray-100">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-[80%] w-[80%] text-gray-300"
-                                     viewBox="0 0 20 20"
-                                     fill="currentColor">
+                                     viewBox="0 0 20 20" fill="currentColor">
                                   <path fill-rule="evenodd"
                                         d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
                                         clip-rule="evenodd"/>
@@ -110,7 +109,7 @@
                     <div v-if="!model.questions.length" class="text-center text-gray-600">
                         You don't have any questions created
                     </div>
-                    <div v-for="(question,index) in model.question" :key="question.id">
+                    <div v-for="(question,index) in model.questions" :key="question.id">
                         <QuestionEditor :question="question" :index="index" @change="questionChange"
                                         @addQuestion="addQuestion" @deleteQuestion="deleteQuestion"></QuestionEditor>
                     </div>
@@ -194,6 +193,10 @@ function questionChange(question) {
 
 function saveSurvey() {
     store.dispatch('saveSurvey', {...model.value}).then(({data}) => {
+        store.commit('notify', {
+            type: 'success',
+            message: 'Survey was successfully updated'
+        });
         router.push({
             name: "SurveyView",
             params: {id: data.data.id}
